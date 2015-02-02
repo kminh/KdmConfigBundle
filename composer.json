@@ -1,0 +1,17 @@
+{
+    "name": "kdm/config-bundle",
+    "type": "symfony-bundle",
+    "require": {
+        "php": "~5.4",
+        "symfony/config": "~2.3",
+        "sonata-project/admin-bundle": "~2.2"
+    },
+    "autoload": {
+        "psr-4": { "Kdm\\ConfigBundle\\": "" }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "0.0.1-dev"
+        }
+    }
+}
