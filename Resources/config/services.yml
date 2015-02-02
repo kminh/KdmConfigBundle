@@ -1,0 +1,5 @@
+services:
+    # manager service
+    kdm.setting.manager:
+        class: %kdm.model.setting_manager.class%
+        arguments: [ @doctrine.orm.entity_manager ]

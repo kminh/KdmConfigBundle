@@ -1,0 +1,3 @@
+parameters:
+    kdm.model.setting_manager.class: Kdm\ConfigBundle\Model\SettingManager
+    kdm.entity.setting.class: Kdm\ConfigBundle\Entity\Setting

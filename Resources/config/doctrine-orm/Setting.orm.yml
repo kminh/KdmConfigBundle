@@ -1,0 +1,15 @@
+Kdm\ConfigBundle\Doctrine\Orm\Setting:
+    type: entity
+    id:
+        id:
+            type: integer
+            generator: { strategy: auto }
+    fields:
+        name:
+            type: string
+        value:
+            type: text
+        groupName:
+            type: string
+        autoload:
+            type: boolean
