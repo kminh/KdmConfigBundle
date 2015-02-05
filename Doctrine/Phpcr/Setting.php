@@ -11,12 +11,14 @@
 
 namespace Kdm\ConfigBundle\Doctrine\Phpcr;
 
+use Doctrine\ODM\PHPCR\HierarchyInterface;
+
 use Kdm\ConfigBundle\Model\SettingInterface;
 
 /**
  * @author Khang Minh <kminh@kdm.com>
  */
-class Setting implements SettingInterface
+class Setting implements SettingInterface, HierarchyInterface
 {
     /**
      * Setting id.
@@ -49,7 +51,7 @@ class Setting implements SettingInterface
     /**
      * Setting group
      *
-     * @var
+     * @var mixed object|null
      */
     protected $group;
 
@@ -83,6 +85,8 @@ class Setting implements SettingInterface
     public function setGroupName($name)
     {
         $this->groupName = $name;
+
+        return $this;
     }
 
     /**
@@ -99,6 +103,40 @@ class Setting implements SettingInterface
     public function setGroup($group)
     {
         $this->group = $group;
+
+        return $this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getParentDocument()
+    {
+        return $this->getGroup();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getParent()
+    {
+        return $this->getParentDocument();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function setParentDocument($parent)
+    {
+        return $this->setGroup($parent);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function setParent($parent)
+    {
+        return $this->setParentDocument($parent);
     }
 
     /**
@@ -132,6 +170,8 @@ class Setting implements SettingInterface
     public function setName($name)
     {
         $this->name = $name;
+
+        return $this;
     }
 
     /**
@@ -158,6 +198,8 @@ class Setting implements SettingInterface
     public function reload()
     {
         $this->needReload = true;
+
+        return $this;
     }
 
     /**

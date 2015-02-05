@@ -1,3 +1,5 @@
 parameters:
     kdm.model.setting_manager.class: Kdm\ConfigBundle\Model\SettingManager
     kdm.entity.setting.class: Kdm\ConfigBundle\Entity\Setting
+    kdm.phpcr.setting.document_class: Kdm\ConfigBundle\Doctrine\Phpcr\Setting
+    kdm.phpcr.initializer.setting.class: Kdm\ConfigBundle\Initializer\SettingInitializer

@@ -1,5 +1,13 @@
 services:
-    # manager service
-    kdm.setting.manager:
-        class: %kdm.model.setting_manager.class%
-        arguments: [ @doctrine.orm.entity_manager ]
+    # phpcr services
+    kdm.phpcr.initializer.setting:
+        class: %kdm.phpcr.initializer.setting.class%
+        tags:
+            - { name: doctrine_phpcr.initializer }
+
+    # bundle services
+    # kdm.setting.manager:
+    #     class: %kdm.model.setting_manager.class%
+    #     arguments:
+    #         # - @doctrine.orm.entity_manager
+    #         - @doctrine_phpcr.odm.document_manager

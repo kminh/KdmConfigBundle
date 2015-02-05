@@ -11,6 +11,7 @@
 
 namespace Kdm\ConfigBundle\Model;
 
+use Symfony\Component\Finder\Finder;
 use Doctrine\Common\Persistence\ObjectManager;
 
 /**
@@ -20,28 +21,22 @@ class SettingManager implements SettingManagerInterface
 {
     protected $om;
 
-    protected $settings;
+    /**
+     * @var array
+     */
+    protected $defaultSettings = array();
 
-    public function __construct(ObjectManager $om)
+    /**
+     * @var array
+     */
+    protected $settings = array();
+
+    public function __construct(ObjectManager $om, array $resourcePaths = array())
     {
         $this->om = $om;
 
-        // preload all autoload settings
-        $this->preload();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    protected function preload()
-    {
-        $repo = $this->om->getRepository('Kdm3dConfigBundle:Setting');
-
-        $settings = $repo->findBy(array('autoload' => true));
-
-        foreach ($settings as $setting) {
-            $this->settings[$setting->getName()] = $setting;
-        }
+        $this->loadDefaultSettings($resourcePaths);
+        $this->loadSettings();
     }
 
     /**
@@ -53,6 +48,8 @@ class SettingManager implements SettingManagerInterface
             return $this->settings[$name];
         }
 
+        // try getting the setting from database
+
         throw new \RuntimeException(sprintf('No setting found for "%s".', $name));
     }
 
@@ -61,6 +58,15 @@ class SettingManager implements SettingManagerInterface
      */
     public function getByGroupName($groupName)
     {
+        $settings = array();
+
+        foreach ($this->settings as $key => $value) {
+            if (strpos($key, $groupName . '.') === 0) {
+                $settings[str_replace($groupName . '.', '', $key)] = $value;
+            }
+        }
+
+        return $settings;
     }
 
     /**
@@ -94,5 +100,92 @@ class SettingManager implements SettingManagerInterface
 
         // save successfully
         return true;
+    }
+
+    /**
+     * Flatten the setting array
+     *
+     * @param mixed array $settings
+     * @param string $prefix
+     *
+     * @return string
+     */
+    protected function flatten(array $settings, $prefix = '')
+    {
+        $separator = '.';
+        $stack = $settings;
+        $flattenedArray = array();
+
+        while ($stack) {
+            list($key, $value) = each($stack);
+            unset($stack[$key]);
+
+            // if key is a group, i.e. has a '_' at the begining, remove it and
+            // add it as a prefix
+            if (strpos($key, '_') === 0) {
+                $key = substr_replace($key, '', 0, 1);
+
+                if (is_array($value)) {
+                    foreach ($value as $subKey => $node) {
+                        $build[$key . $separator . $subKey] = $node;
+                    }
+
+                    $stack = $build + $stack;
+
+                    continue;
+                }
+            } else {
+                $flattenedArray[$prefix . $separator . $key] = $value;
+            }
+        }
+
+        return $flattenedArray;
+    }
+
+    /**
+     * Load default settings from certain resources
+     *
+     * @param array $resourcePaths an array of paths to locate resources
+     */
+    protected function loadDefaultSettings(array $resourcePaths)
+    {
+        $finder = new Finder();
+
+        foreach ($resourcePaths as $path) {
+            // get all setting files inside the specified resource path and
+            // include them as setting variables
+            $settingFiles = $finder
+                ->files()
+                ->in($path)
+                ->name('*.php')
+                ->depth('== 0');
+
+            foreach ($settingFiles as $file) {
+                $settings = include $file;
+                if (!is_array($settings)) {
+                    throw new \InvalidArgumentException('Provided default settings resource is invalid, please use a PHP file that returns an array.');
+                }
+
+                $settingPrefix = str_replace('.php', '', $file->getFileName());
+                $this->defaultSettings = array_merge($this->defaultSettings, $this->flatten($settings, $settingPrefix));
+            }
+        }
+
+        $this->settings = $this->defaultSettings;
+    }
+
+    /**
+     * Load settings that are marked as 'autoload' from database and merge
+     * them with default settings
+     */
+    protected function loadSettings()
+    {
+        $repo = $this->om->getRepository('KdmConfigBundle:Setting');
+
+        $settings = $repo->findBy(array('autoload' => true));
+
+        foreach ($settings as $setting) {
+            $this->settings[$setting->getName()] = $setting;
+        }
     }
 }

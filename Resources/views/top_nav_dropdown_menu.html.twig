@@ -1,0 +1,35 @@
+{% set groups = [] %}
+
+{% for group in admin_pool.dashboardgroups %}
+    {% set display_group = false %}
+
+    {% for admin in group.items if display_group == false %}
+        {% if admin.hasRoute('manage') and admin.isGranted('EDIT') %}
+            {% set display_group = true %}
+            {% set groups = [group]|merge(groups) %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+
+<li class="dropdown">
+    <a class="dropdown-toggle" href="#" data-toggle="dropdown">
+        <i class="fa fa-fw fa-cogs"></i> <i class="fa fa-caret-down"></i>
+    </a>
+
+    <ul class="dropdown-menu dropdown-settings">
+        {% for group in groups|reverse %}
+            {% set display = (group.roles is empty or is_granted('ROLE_SONATA_ADMIN') ) %}
+            {% for role in group.roles if not display %}
+                {% set display = is_granted(role) %}
+            {% endfor %}
+
+            {% if display %}
+                {% for admin in group.items %}
+                    <li role="presentation">
+                        <a role="menuitem" tabindex="-1" href="{{ admin.generateUrl('manage')}}">{{ admin.label|trans({}, admin.translationdomain) }}</a>
+                    </li>
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+    </ul>
+</li>

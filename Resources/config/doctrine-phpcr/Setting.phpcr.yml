@@ -4,5 +4,5 @@ Kdm\ConfigBundle\Doctrine\Phpcr\Setting:
         name: string
         value: string
         autoload: boolean
-    parentdocument: group
-    nodename: name
+    parentDocument: group
+    nodeName: name

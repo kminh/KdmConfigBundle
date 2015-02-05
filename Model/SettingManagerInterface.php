@@ -30,14 +30,14 @@ interface SettingManagerInterface
      * Gets settings by group name
      *
      * @param string $groupName
-     * @return array of Entity\Setting
+     * @return array
      */
     public function getByGroupName($groupName);
 
     /**
      * Gets all settings
      *
-     * @return array of Entity\Setting
+     * @return array
      */
     public function getAll();
 

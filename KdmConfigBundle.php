@@ -12,6 +12,9 @@
 namespace Kdm\ConfigBundle;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+
+use Doctrine\Bundle\PHPCRBundle\DependencyInjection\Compiler\DoctrinePhpcrMappingsPass;
 
 /**
  * This bundle handles saving and retrieving configuration and settings
@@ -20,4 +23,19 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
  */
 class KdmConfigBundle extends Bundle
 {
+    public function build(ContainerBuilder $container)
+    {
+        parent::build($container);
+
+        if (class_exists('Doctrine\Bundle\PHPCRBundle\DependencyInjection\Compiler\DoctrinePhpcrMappingsPass')) {
+            $container->addCompilerPass(
+                DoctrinePhpcrMappingsPass::createYamlMappingDriver(
+                    [realpath(__DIR__ . '/Resources/config/doctrine-phpcr') => 'Kdm\ConfigBundle\Doctrine\Phpcr'],
+                    [],
+                    false,
+                    array('KdmConfigBundle' => 'Kdm\ConfigBundle\Doctrine\Phpcr')
+                )
+            );
+        }
+    }
 }
