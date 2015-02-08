@@ -117,6 +117,7 @@ class SettingManager implements SettingManagerInterface
         $flattenedArray = array();
 
         while ($stack) {
+            $build = array();
             list($key, $value) = each($stack);
             unset($stack[$key]);
 
@@ -127,7 +128,9 @@ class SettingManager implements SettingManagerInterface
 
                 if (is_array($value)) {
                     foreach ($value as $subKey => $node) {
-                        $build[$key . $separator . $subKey] = $node;
+                        $groupPrefix = strpos($subKey, '_') === 0 ? '_' : '';
+                        $subKey = !empty($groupPrefix) ? substr_replace($subKey, '', 0, 1) : $subKey;
+                        $build[$groupPrefix . $key . $separator . $subKey] = $node;
                     }
 
                     $stack = $build + $stack;
