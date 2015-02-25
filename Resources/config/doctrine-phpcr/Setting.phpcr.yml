@@ -1,8 +1,7 @@
 Kdm\ConfigBundle\Doctrine\Phpcr\Setting:
     id: id
     fields:
-        name: string
         value: string
         autoload: boolean
-    parentDocument: group
-    nodeName: name
+    parentdocument: group
+    nodename: name

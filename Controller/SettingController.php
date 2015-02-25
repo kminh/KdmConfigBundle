@@ -19,30 +19,39 @@ use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 
 use Sonata\AdminBundle\Controller\CRUDController;
 
+use Kdm\ConfigBundle\Model\SettingGroup;
+
 /**
  * @author Khang Minh <kminh@kdmlabs.com>
  */
-class SettingController extends CRUDController
+abstract class SettingController extends CRUDController
 {
+    abstract public function manageAction(Request $request);
+
     /**
      * Manage multiple settings in one go
      *
+     * @internal
      * @return Response
      */
-    public function manageAction(Request $request)
+    protected function manageSettings(Request $request)
     {
-        // use Edit permission for now
-        if (false === $this->admin->isGranted('EDIT')) {
-            throw $this->createAccessDeniedException();
-        }
-
         $form = $this->admin->getForm();
 
         if ($request->isMethod('POST')) {
+            var_dump($request->request); exit;
+            var_dump($form->get('title')->getData()); exit;
         }
 
         return $this->render('KdmConfigBundle:CRUD:manage_settings.html.twig', [
             'form' => $form->createView()
         ]);
+    }
+
+    protected function checkPermission()
+    {
+        if (false === $this->admin->isGranted('MANAGE')) {
+            throw $this->createAccessDeniedException();
+        }
     }
 }
