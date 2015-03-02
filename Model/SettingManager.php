@@ -86,13 +86,16 @@ class SettingManager implements SettingManagerInterface
     /**
      * {@inheritDoc}
      */
-    public function getByGroupName($groupName)
+    public function getByGroupName($groupName, $rootGroupName = '')
     {
         $settings = array();
 
         foreach ($this->settings as $key => $value) {
             if (strpos($key, $groupName . '.') === 0) {
                 $settings[str_replace($groupName . '.', '', $key)] = $value;
+            } elseif ($key == $groupName) {
+                // only single value
+                return $value;
             }
         }
 
@@ -184,13 +187,13 @@ class SettingManager implements SettingManagerInterface
             // each dot (.) in a setting name equals a group, for PHPCR we need
             // to create generic node for each group first before actually
             // saving the setting
-            $settingName = preg_replace('#^' . $groupName . '.#', '', $name, 1);
+            $settingName = preg_replace('#^' . $groupName . '\.#', '', $name, 1);
 
             if (strpos($settingName, '.') !== false) {
                 // the last group is the actual setting name
                 $groups = explode('.', $settingName);
                 $settingName = array_pop($groups);
-                $groupPath = implode('.', $groups);
+                $groupPath = implode('/', $groups);
 
                 // create generic node
                 $parentPath = NodeHelper::createPath($this->session, $rootGroup->getId() . '/' . $groupPath);
@@ -251,6 +254,19 @@ class SettingManager implements SettingManagerInterface
         return $flattenedArray;
     }
 
+    protected function buildNestedArray(array $groups, array &$stack, $value)
+    {
+        if (sizeof($groups) == 1) {
+            $stack[$groups[0]] = $value;
+            return;
+        }
+
+        $group = array_shift($groups);
+        $groupName = '_' . $group;
+        $stack[$groupName] = isset($stack[$groupName]) ? $stack[$groupName] : array();
+        $this->buildNestedArray($groups, $stack[$groupName], $value);
+    }
+
     /**
      * Unflatten the setting array
      *
@@ -266,25 +282,7 @@ class SettingManager implements SettingManagerInterface
         foreach ($settings as $name => $value) {
             if (strpos($name, '.') !== false) {
                 $groups = explode('.', $name);
-                $currentGroup = false;
-
-                foreach ($groups as $key => $group) {
-                    // last nested setting, assign value
-                    if ($key == sizeof($groups) - 1 && is_array($currentGroup)) {
-                        $currentGroup[$group] = $value;
-                    }
-
-                    $groupName = '_' . $group;
-
-                    // first level of nested settings, no current group set yet
-                    if (!$currentGroup) {
-                        $unflattenedArray[$groupName] = !isset($unflattenedArray[$groupName]) ? array() : $unflattenedArray[$groupName];
-                        $currentGroup = &$unflattenedArray[$groupName];
-                    } else {
-                        $currentGroup[$groupName] = !isset($currentGroup[$groupName]) ? array() : $currentGroup[$groupName];
-                        $currentGroup = &$currentGroup[$groupName];
-                    }
-                }
+                $this->buildNestedArray($groups, $unflattenedArray, $value);
 
                 continue;
             }

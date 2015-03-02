@@ -24,9 +24,14 @@ use Kdm\ConfigBundle\Model\SettingAdminInterface;
 /**
  * @author Khang Minh <kminh@kdmlabs.com>
  */
-abstract class SettingController extends CRUDController
+class SettingController extends CRUDController
 {
-    abstract public function manageAction(Request $request, $_route);
+    public function manageAction(Request $request, $_route)
+    {
+        $this->checkPermission();
+
+        return $this->manageSettings($request, $_route);
+    }
 
     /**
      * Manage multiple settings in one go
