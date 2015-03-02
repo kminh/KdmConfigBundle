@@ -79,6 +79,11 @@ class Setting implements SettingInterface, HierarchyInterface
         $this->value = $value;
     }
 
+    public function getId()
+    {
+        return $this->id;
+    }
+
     /**
      * {@inheritDoc}
      */

@@ -12,14 +12,24 @@
 namespace Kdm\ConfigBundle\Model;
 
 use Symfony\Component\Finder\Finder;
+use Symfony\Bridge\Doctrine\ManagerRegistry;
+
 use Doctrine\Common\Persistence\ObjectManager;
+
+use PHPCR\Util\NodeHelper;
+
+use Kdm\ConfigBundle\Doctrine\Phpcr\Setting;
 
 /**
  * @author Khang Minh <kminh@kdm.com>
  */
 class SettingManager implements SettingManagerInterface
 {
-    protected $om;
+    protected $dm;
+
+    protected $dr;
+
+    protected $session; // phpcr session
 
     /**
      * @var array
@@ -31,9 +41,13 @@ class SettingManager implements SettingManagerInterface
      */
     protected $settings = array();
 
-    public function __construct(ObjectManager $om, array $resourcePaths = array())
+    protected $basePath = '/cms/settings';
+
+    public function __construct(ManagerRegistry $mr, array $resourcePaths = array())
     {
-        $this->om = $om;
+        $this->dm = $mr->getManager(); // document manager
+        $this->dr = $this->dm->getRepository(Setting::class); // document repository
+        $this->session = $mr->getConnection();
 
         $this->loadDefaultSettings($resourcePaths);
         $this->loadSettings();
@@ -45,12 +59,28 @@ class SettingManager implements SettingManagerInterface
     public function get($name)
     {
         if (isset($this->settings[$name])) {
-            return $this->settings[$name];
+            $setting = $this->settings[$name];
+        } else {
+            throw new \RuntimeException(sprintf('No setting found for "%s".', $name));
         }
 
-        // try getting the setting from database
+        // if there's at least one placeholder, we need to parse the value of
+        // setting
+        if (strpos($setting, '{{') !== false) {
+            $setting = preg_replace_callback(
+                '/\{\{\s+([a-z0-9.-_]+)\s+\}\}/uis',
+                function($matches) {
+                    // recursively parse setting
+                    return $this->get($matches[1]);
+                },
+                $setting
+            );
 
-        throw new \RuntimeException(sprintf('No setting found for "%s".', $name));
+            // cache parsed setting so we don't have to do this next time
+            $this->settings[$name] = $setting;
+        }
+
+        return $setting;
     }
 
     /**
@@ -66,7 +96,7 @@ class SettingManager implements SettingManagerInterface
             }
         }
 
-        return $settings;
+        return $this->unflatten($settings);
     }
 
     /**
@@ -86,11 +116,11 @@ class SettingManager implements SettingManagerInterface
 
         foreach ($settings as $setting) {
             /* $setting->save(); */
-            $this->om->persist($setting);
+            $this->dm->persist($setting);
         }
 
         try {
-            $this->om->flush();
+            $this->dm->flush();
         } catch (\Exception $e) {
             return false;
         }
@@ -103,12 +133,88 @@ class SettingManager implements SettingManagerInterface
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function saveGroup($groupName, array $newSettings = array())
+    {
+        $basePath = $this->basePath;
+        $groupPath = $basePath . '/' . $groupName;
+
+        if (!$rootGroup = $this->dm->find(null, $groupPath)) {
+            throw new \DomainException(sprintf('Invalid setting group named "%s". Make sure you have initialized the group in database.', $groupName));
+        }
+
+        $newSettings = $this->flatten($newSettings, $groupName);
+
+        $qb = $this->dm
+            ->createQueryBuilder('s')
+            ->fromDocument(Setting::class, 's')
+            ->where()->descendant($rootGroup->getId(), 's')
+            ->end()
+        ;
+
+        $dbSettings = $qb->getQuery()->execute();
+
+        // update existing settings in db if needed
+        foreach ($dbSettings as $dbSetting) {
+            // build setting name from db setting's id (full path)
+            $settingName = preg_replace('#^' . $basePath . '/#', '', $dbSetting->getId());
+            $settingName = str_replace('/', '.', $settingName);
+
+            if (isset($newSettings[$settingName])) {
+                $dbSetting->setValue($newSettings[$settingName]);
+
+                // unset here to determine which settings are new
+                unset($newSettings[$settingName]);
+            }
+        }
+
+        // add new settings if needed
+        foreach ($newSettings as $name => $newSetting) {
+            try {
+                $currentSetting = $this->get($name);
+            } catch (\Exception $e) {
+                // this setting is not recognized, don't do anything
+                continue;
+            }
+
+            // default parent document
+            $parentDocument = $rootGroup;
+
+            // each dot (.) in a setting name equals a group, for PHPCR we need
+            // to create generic node for each group first before actually
+            // saving the setting
+            $settingName = preg_replace('#^' . $groupName . '.#', '', $name, 1);
+
+            if (strpos($settingName, '.') !== false) {
+                // the last group is the actual setting name
+                $groups = explode('.', $settingName);
+                $settingName = array_pop($groups);
+                $groupPath = implode('.', $groups);
+
+                // create generic node
+                $parentPath = NodeHelper::createPath($this->session, $rootGroup->getId() . '/' . $groupPath);
+                $parentDocument = $this->dm->find(null, $parentPath->getPath());
+
+                $this->session->save();
+            }
+
+            $dbSetting = new Setting($settingName, $newSetting);
+            $dbSetting->setParentDocument($parentDocument);
+
+            $this->dm->persist($dbSetting);
+        }
+
+        $this->dm->flush();
+    }
+
+    /**
      * Flatten the setting array
      *
      * @param mixed array $settings
      * @param string $prefix
      *
-     * @return string
+     * @return array
      */
     protected function flatten(array $settings, $prefix = '')
     {
@@ -143,6 +249,50 @@ class SettingManager implements SettingManagerInterface
         }
 
         return $flattenedArray;
+    }
+
+    /**
+     * Unflatten the setting array
+     *
+     * @param mixed array $settings
+     * @param string $prefix
+     *
+     * @return array
+     */
+    protected function unflatten(array $settings, $prefix = '')
+    {
+        $unflattenedArray = array();
+
+        foreach ($settings as $name => $value) {
+            if (strpos($name, '.') !== false) {
+                $groups = explode('.', $name);
+                $currentGroup = false;
+
+                foreach ($groups as $key => $group) {
+                    // last nested setting, assign value
+                    if ($key == sizeof($groups) - 1 && is_array($currentGroup)) {
+                        $currentGroup[$group] = $value;
+                    }
+
+                    $groupName = '_' . $group;
+
+                    // first level of nested settings, no current group set yet
+                    if (!$currentGroup) {
+                        $unflattenedArray[$groupName] = !isset($unflattenedArray[$groupName]) ? array() : $unflattenedArray[$groupName];
+                        $currentGroup = &$unflattenedArray[$groupName];
+                    } else {
+                        $currentGroup[$groupName] = !isset($currentGroup[$groupName]) ? array() : $currentGroup[$groupName];
+                        $currentGroup = &$currentGroup[$groupName];
+                    }
+                }
+
+                continue;
+            }
+
+            $unflattenedArray[$name] = $value;
+        }
+
+        return $unflattenedArray;
     }
 
     /**
@@ -183,12 +333,13 @@ class SettingManager implements SettingManagerInterface
      */
     protected function loadSettings()
     {
-        $repo = $this->om->getRepository('KdmConfigBundle:Setting');
-
-        $settings = $repo->findBy(array('autoload' => true));
+        $settings = $this->dr->findBy(array('autoload' => true));
 
         foreach ($settings as $setting) {
-            $this->settings[$setting->getName()] = $setting;
+            $settingName = preg_replace('#^' . $this->basePath . '/#', '', $setting->getId(), 1);
+            $settingName = str_replace('/', '.', $settingName);
+
+            $this->settings[$settingName] = $setting->getValue();
         }
     }
 }

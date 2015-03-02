@@ -19,14 +19,14 @@ use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 
 use Sonata\AdminBundle\Controller\CRUDController;
 
-use Kdm\ConfigBundle\Model\SettingGroup;
+use Kdm\ConfigBundle\Model\SettingAdminInterface;
 
 /**
  * @author Khang Minh <kminh@kdmlabs.com>
  */
 abstract class SettingController extends CRUDController
 {
-    abstract public function manageAction(Request $request);
+    abstract public function manageAction(Request $request, $_route);
 
     /**
      * Manage multiple settings in one go
@@ -34,13 +34,49 @@ abstract class SettingController extends CRUDController
      * @internal
      * @return Response
      */
-    protected function manageSettings(Request $request)
+    protected function manageSettings(Request $request, $_route)
     {
+        // can't continue if this is not the right admin
+        if (!$this->admin instanceof SettingAdminInterface) {
+            throw new \DomainException(sprintf('Admin class used with this controller must implement "%s"', SettingAdminInterface::class));
+        }
+
+        $settingGroupName = $this->admin->getSettingGroupName();
+        if (empty($settingGroupName)) {
+            throw new \DomainException('A setting group name must be set for the current admin (implement "getSettingGroupName" and return a string).');
+        }
+
         $form = $this->admin->getForm();
 
+        // each direct child is the direct child setting group of this admin's
+        // setting group
+        foreach ($form->all() as $child) {
+            $childName = $child->getName();
+            if (strpos($childName, '_') === 0) {
+                $childName = substr_replace($childName, '', 0, 1);
+            }
+
+            $child->setData($this->get('settings')->getByGroupName($settingGroupName . '.' . $childName));
+        }
+
         if ($request->isMethod('POST')) {
-            var_dump($request->request); exit;
-            var_dump($form->get('title')->getData()); exit;
+            $form->handleRequest($request);
+
+            if ($form->isValid()) {
+                $settings = array();
+                foreach ($form->all() as $child) {
+                    $settings[$child->getName()] = $child->getData();
+                }
+
+                try {
+                    $this->get('settings')->saveGroup($settingGroupName, $settings);
+
+                    $this->addFlash('sonata_flash_success', 'Settings saved');
+                    return $this->redirectToRoute($_route);
+                } catch (\Exception $e) {
+                    $this->addFlash('sonata_flash_error', $e->getMessage());
+                }
+            }
         }
 
         return $this->render('KdmConfigBundle:CRUD:manage_settings.html.twig', [

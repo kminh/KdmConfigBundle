@@ -18,12 +18,14 @@ use Sonata\AdminBundle\Datagrid\ListMapper;
 use Sonata\AdminBundle\Datagrid\DatagridMapper;
 use Sonata\AdminBundle\Route\RouteCollection;
 
+use Kdm\ConfigBundle\Model\SettingAdminInterface;
+
 /**
  * @author Khang Minh <kminh@kdmlabs.com>
  */
-abstract class BaseSettingAdmin extends Admin
+abstract class BaseSettingAdmin extends Admin implements SettingAdminInterface
 {
-    protected $baseRoutePattern = 'settings';
+    /* protected $baseRoutePattern = 'settings'; */
 
     /**
      * {@inheritdoc}
@@ -35,7 +37,8 @@ abstract class BaseSettingAdmin extends Admin
 
         $collection->add('manage');
         $collection->clearExcept([
-            'manage'
+            'manage',
+            /* 'list' */
         ]);
     }
 
