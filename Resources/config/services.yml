@@ -11,3 +11,10 @@ services:
     #     arguments:
     #         # - @doctrine.orm.entity_manager
     #         - @doctrine_phpcr.odm.document_manager
+
+    # twig service
+    kdm.twig.loader.config_phpcr:
+        class: %kdm.twig.loader.config_phpcr.class%
+        arguments: [ @settings ]
+        tags:
+            - { name: twig.loader }

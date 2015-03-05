@@ -3,3 +3,4 @@ parameters:
     kdm.entity.setting.class: Kdm\ConfigBundle\Entity\Setting
     kdm.phpcr.setting.document_class: Kdm\ConfigBundle\Doctrine\Phpcr\Setting
     kdm.phpcr.initializer.setting.class: Kdm\ConfigBundle\Initializer\SettingInitializer
+    kdm.twig.loader.config_phpcr.class: Kdm\ConfigBundle\Twig\Loader\Config

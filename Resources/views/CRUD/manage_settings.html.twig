@@ -1,6 +1,7 @@
 {% extends 'SonataAdminBundle:CRUD:action.html.twig' %}
 
-{% form_theme form 'SonataDoctrineORMAdminBundle:Form:form_admin_fields.html.twig' %}
+{# form_theme form 'SonataDoctrineORMAdminBundle:Form:form_admin_fields.html.twig' #}
+{% form_theme form 'KdmConfigBundle:Form:form_admin_fields.html.twig' %}
 {% import "KdmConfigBundle:CRUD:base_edit_form_macro.html.twig" as form_helper %}
 
 {% block title %}

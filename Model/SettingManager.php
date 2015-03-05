@@ -41,6 +41,11 @@ class SettingManager implements SettingManagerInterface
      */
     protected $settings = array();
 
+    /**
+     * @var array of Settings
+     */
+    protected $settingDocuments = array();
+
     protected $basePath = '/cms/settings';
 
     public function __construct(ManagerRegistry $mr, array $resourcePaths = array())
@@ -58,20 +63,25 @@ class SettingManager implements SettingManagerInterface
      */
     public function get($name)
     {
-        if (isset($this->settings[$name])) {
+        if (array_key_exists($name, $this->settings)) {
             $setting = $this->settings[$name];
         } else {
             throw new \RuntimeException(sprintf('No setting found for "%s".', $name));
         }
 
-        // if there's at least one placeholder, we need to parse the value of
-        // setting
+        // if there's at least one placeholder, we need to parse the value of setting
         if (strpos($setting, '{{') !== false) {
             $setting = preg_replace_callback(
                 '/\{\{\s+([a-z0-9.-_]+)\s+\}\}/uis',
                 function($matches) {
                     // recursively parse setting
-                    return $this->get($matches[1]);
+                    try {
+                        return $this->get($matches[1]);
+                    } catch (\RuntimeException $e) {
+                        // don't do anything if we can't parse the value, it
+                        // might be a template placeholder
+                        return $matches[0];
+                    }
                 },
                 $setting
             );
@@ -81,6 +91,25 @@ class SettingManager implements SettingManagerInterface
         }
 
         return $setting;
+    }
+
+    public function getSettingDocument($name)
+    {
+        if (array_key_exists($name, $this->settingDocuments)) {
+            $setting = $this->settingDocuments[$name];
+        } else {
+            throw new \RuntimeException(sprintf('No setting found for "%s".', $name));
+        }
+
+        return $setting;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getLastUpdatedTime($name)
+    {
+        return $this->getSettingDocument($name)->getUpdatedAt()->format('U');
     }
 
     /**
@@ -338,6 +367,7 @@ class SettingManager implements SettingManagerInterface
             $settingName = str_replace('/', '.', $settingName);
 
             $this->settings[$settingName] = $setting->getValue();
+            $this->settingDocuments[$settingName] = $setting;
         }
     }
 }

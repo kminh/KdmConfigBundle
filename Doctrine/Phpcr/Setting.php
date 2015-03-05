@@ -69,6 +69,10 @@ class Setting implements SettingInterface, HierarchyInterface
      */
     protected $needReload = false;
 
+    protected $createdAt;
+
+    protected $updatedAt;
+
     public function __construct($name = '', $value = '')
     {
         if (is_null($name) || !is_string($name)) {
@@ -213,5 +217,66 @@ class Setting implements SettingInterface, HierarchyInterface
     public function needReload()
     {
         return (bool) $this->needReload;
+    }
+
+    /**
+     * Sets createdAt.
+     *
+     * @param  DateTime $createdAt
+     * @return $this
+     */
+    public function setCreatedAt(\DateTime $createdAt = null)
+    {
+        $createdAt = is_null($createdAt) ? new \DateTime() : $createdAt;
+
+        $this->createdAt = $createdAt;
+
+        return $this;
+    }
+
+    /**
+     * Returns createdAt.
+     *
+     * @return DateTime
+     */
+    public function getCreatedAt()
+    {
+        return $this->createdAt;
+    }
+
+    /**
+     * Sets updatedAt.
+     *
+     * @param  DateTime $updatedAt
+     * @return $this
+     */
+    public function setUpdatedAt(\DateTime $updatedAt)
+    {
+        $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    /**
+     * Returns updatedAt.
+     *
+     * @return DateTime
+     */
+    public function getUpdatedAt()
+    {
+        return $this->updatedAt;
+    }
+
+    public function onPrePersist()
+    {
+        $now = new \DateTime();
+
+        $this->setCreatedAt($now);
+        $this->setUpdatedAt($now);
+    }
+
+    public function onPreUpdate()
+    {
+        $this->setUpdatedAt(new \DateTime());
     }
 }

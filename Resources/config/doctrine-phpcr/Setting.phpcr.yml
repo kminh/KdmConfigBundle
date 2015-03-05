@@ -3,5 +3,18 @@ Kdm\ConfigBundle\Doctrine\Phpcr\Setting:
     fields:
         value: string
         autoload: boolean
+        createdAt:
+            type: date
+            # gedmo:
+            #     timestampable:
+            #         on: create
+        updatedAt:
+            type: date
+            # gedmo:
+            #     timestampable:
+            #         on: update
     parentdocument: group
     nodename: name
+    lifecycleCallbacks:
+        prePersist: [ onPrePersist ]
+        preUpdate: [ onPreUpdate ]
