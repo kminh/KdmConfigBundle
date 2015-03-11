@@ -72,9 +72,9 @@ class Config implements \Twig_LoaderInterface, \Twig_ExistsLoaderInterface
     {
         $name = (string) $name;
 
-        if (!preg_match('/^KdmSetting:/', $name)) {
-            throw new \InvalidArgumentException('Invalid template name for config loader, should start with "KdmSetting:" followed by the setting\'s name.');
-        }
+        /* if (!preg_match('/^KdmSetting:/', $name)) { */
+        /*     throw new \InvalidArgumentException('Invalid template name for config loader, should start with "KdmSetting:" followed by the setting\'s name.'); */
+        /* } */
 
         return preg_replace('/^KdmSetting:/', '', $name, 1);
     }
