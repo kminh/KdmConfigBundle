@@ -6,11 +6,16 @@ services:
             - { name: doctrine_phpcr.initializer }
 
     # bundle services
-    # kdm.setting.manager:
-    #     class: %kdm.model.setting_manager.class%
-    #     arguments:
-    #         # - @doctrine.orm.entity_manager
-    #         - @doctrine_phpcr.odm.document_manager
+    kdm.setting.manager:
+        class: %kdm.model.setting_manager.class%
+        arguments:
+            # - @doctrine.orm.entity_manager
+            # - @doctrine_phpcr.odm.document_manager
+            - @doctrine_phpcr
+            - %kdm.config.setting_paths%
+    settings:
+        alias: kdm.setting.manager
+
 
     # twig service
     kdm.twig.loader.config_phpcr:
@@ -18,3 +23,8 @@ services:
         arguments: [ @settings ]
         tags:
             - { name: twig.loader }
+    kdm.twig.extension.config:
+        class: %kdm.twig.extension.config.class%
+        arguments: [ @kernel, @settings ]
+        tags:
+            - { name: twig.extension }

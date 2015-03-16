@@ -1,6 +1,10 @@
 parameters:
+    # data
+    kdm.config.setting_paths: ''
+    # classes
     kdm.model.setting_manager.class: Kdm\ConfigBundle\Model\SettingManager
     kdm.entity.setting.class: Kdm\ConfigBundle\Entity\Setting
     kdm.phpcr.setting.document_class: Kdm\ConfigBundle\Doctrine\Phpcr\Setting
     kdm.phpcr.initializer.setting.class: Kdm\ConfigBundle\Initializer\SettingInitializer
     kdm.twig.loader.config_phpcr.class: Kdm\ConfigBundle\Twig\Loader\Config
+    kdm.twig.extension.config.class: Kdm\ConfigBundle\Twig\Extension\ConfigExtension

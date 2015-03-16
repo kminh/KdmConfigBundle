@@ -98,7 +98,8 @@ class SettingManager implements SettingManagerInterface
         if (array_key_exists($name, $this->settingDocuments)) {
             $setting = $this->settingDocuments[$name];
         } else {
-            throw new \RuntimeException(sprintf('No setting found for "%s".', $name));
+            return null;
+            /* throw new \RuntimeException(sprintf('No setting found for "%s".', $name)); */
         }
 
         return $setting;
@@ -109,7 +110,13 @@ class SettingManager implements SettingManagerInterface
      */
     public function getLastUpdatedTime($name)
     {
-        return $this->getSettingDocument($name)->getUpdatedAt()->format('U');
+        $setting = $this->getSettingDocument($name);
+
+        if (is_null($setting)) {
+            return 0;
+        }
+
+        return $setting->getUpdatedAt()->format('U');
     }
 
     /**

@@ -15,13 +15,14 @@ use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
+use Symfony\Component\HttpKernel\DependencyInjection\ConfigurableExtension;
 
 /**
  * @author Khang Minh <kminh@kdmlabs.com>
  */
-class KdmConfigExtension extends Extension
+class KdmConfigExtension extends ConfigurableExtension
 {
-    public function load(array $configs, ContainerBuilder $container)
+    public function loadConfiguration(ContainerBuilder $container)
     {
         $loader = new YamlFileLoader(
             $container,
@@ -32,7 +33,13 @@ class KdmConfigExtension extends Extension
         $loader->load('services.yml');
     }
 
-    public function getConfiguration(array $configs, ContainerBuilder $container)
+    protected function loadInternal(array $configs, ContainerBuilder $container)
     {
+        $this->loadConfiguration($container);
+
+        // path to where config files are stored
+        if (!empty($configs['setting_paths'])) {
+            $container->setParameter('kdm.config.setting_paths', $configs['setting_paths']);
+        }
     }
 }
