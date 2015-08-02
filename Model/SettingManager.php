@@ -69,6 +69,11 @@ class SettingManager implements SettingManagerInterface
             throw new \RuntimeException(sprintf('No setting found for "%s".', $name));
         }
 
+        // setting is an array of values, no need to further process
+        if (is_array($setting)) {
+            return $setting;
+        }
+
         // if there's at least one placeholder, we need to parse the value of setting
         if (strpos($setting, '{{') !== false) {
             $setting = preg_replace_callback(
@@ -200,7 +205,7 @@ class SettingManager implements SettingManagerInterface
             $settingName = preg_replace('#^' . $basePath . '/#', '', $dbSetting->getId());
             $settingName = str_replace('/', '.', $settingName);
 
-            if (isset($newSettings[$settingName])) {
+            if (array_key_exists($settingName, $newSettings)) {
                 $dbSetting->setValue($newSettings[$settingName]);
 
                 // unset here to determine which settings are new

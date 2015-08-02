@@ -13,13 +13,19 @@ namespace Kdm\ConfigBundle\Doctrine\Phpcr;
 
 use Doctrine\ODM\PHPCR\HierarchyInterface;
 
+use Symfony\Cmf\Bundle\CoreBundle\Translatable\TranslatableInterface;
+
+use Kdm\CmfBundle\Translation\LocaleAwareEntity;
+
 use Kdm\ConfigBundle\Model\SettingInterface;
 
 /**
  * @author Khang Minh <kminh@kdm.com>
  */
-class Setting implements SettingInterface, HierarchyInterface
+class Setting implements SettingInterface, HierarchyInterface, TranslatableInterface
 {
+    use LocaleAwareEntity;
+
     /**
      * Setting id.
      *
