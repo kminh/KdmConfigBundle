@@ -1,0 +1,6 @@
+Kdm\ConfigBundle\Doctrine\Phpcr\I18nSetting:
+    translator: attribute
+    locale: locale
+    fields:
+        value:
+            translated: true

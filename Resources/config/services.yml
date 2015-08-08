@@ -16,6 +16,14 @@ services:
     settings:
         alias: kdm.setting.manager
 
+    # bundle listeners
+    kdm.setting.subscriber.on_kernel_events:
+        class: %kdm.setting.subscriber.on_kernel_events.class%
+        arguments:
+            - @service_container
+            - @settings
+        tags:
+            - { name: kernel.event_subscriber }
 
     # twig service
     kdm.twig.loader.config_phpcr:

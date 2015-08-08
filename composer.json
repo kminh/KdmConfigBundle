@@ -4,14 +4,15 @@
     "require": {
         "php": "~5.4",
         "symfony/config": "~2.3",
-        "sonata-project/admin-bundle": "~2.2"
+        "sonata-project/admin-bundle": "~2.2",
+        "kdm/cmf-bundle": "dev-master"
     },
     "autoload": {
         "psr-4": { "Kdm\\ConfigBundle\\": "" }
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "0.0.4-dev"
+            "dev-master": "0.0.6-dev"
         }
     }
 }

@@ -1,11 +1,8 @@
 Kdm\ConfigBundle\Doctrine\Phpcr\Setting:
-    translator: attribute
     id: id
-    locale: locale
     fields:
         value:
             type: string
-            translated: true
             nullable: true
         autoload: boolean
         createdAt:

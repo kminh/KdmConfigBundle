@@ -12,22 +12,26 @@
 namespace Kdm\ConfigBundle\Model;
 
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\SplFileInfo;
 use Symfony\Bridge\Doctrine\ManagerRegistry;
 
 use Doctrine\Common\Persistence\ObjectManager;
+use Doctrine\ODM\PHPCR\DocumentManager;
 
 use PHPCR\Util\NodeHelper;
 
 use Kdm\ConfigBundle\Doctrine\Phpcr\Setting;
+use Kdm\ConfigBundle\Doctrine\Phpcr\I18nSetting;
 
 /**
  * @author Khang Minh <kminh@kdm.com>
  */
 class SettingManager implements SettingManagerInterface
 {
+    /**
+     * @var DocumentManager
+     */
     protected $dm;
-
-    protected $dr;
 
     protected $session; // phpcr session
 
@@ -42,20 +46,42 @@ class SettingManager implements SettingManagerInterface
     protected $settings = array();
 
     /**
+     * @since 0.0.6 hold translatable settings
+     * @var array
+     */
+    protected $i18nSettings = array();
+
+    /**
      * @var array of Settings
      */
     protected $settingDocuments = array();
 
     protected $basePath = '/cms/settings';
 
+    protected $locale;
+
     public function __construct(ManagerRegistry $mr, array $resourcePaths = array())
     {
-        $this->dm = $mr->getManager(); // document manager
-        $this->dr = $this->dm->getRepository(Setting::class); // document repository
+        $this->dm      = $mr->getManager(); // document manager
         $this->session = $mr->getConnection();
 
         $this->loadDefaultSettings($resourcePaths);
         $this->loadSettings();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function setLocale($locale)
+    {
+        if ($this->locale === $locale) {
+            return;
+        }
+
+        $this->locale = $locale;
+
+        // we need to reload all i18nSettings due to locale changes
+        $this->loadSettings(I18nSetting::class);
     }
 
     /**
@@ -132,6 +158,8 @@ class SettingManager implements SettingManagerInterface
         $settings = array();
 
         foreach ($this->settings as $key => $value) {
+            $value = $this->normalizeValue($key, $value);
+
             if (strpos($key, $groupName . '.') === 0) {
                 $settings[str_replace($groupName . '.', '', $key)] = $value;
             } elseif ($key == $groupName) {
@@ -181,14 +209,17 @@ class SettingManager implements SettingManagerInterface
      */
     public function saveGroup($groupName, array $newSettings = array())
     {
-        $basePath = $this->basePath;
-        $groupPath = $basePath . '/' . $groupName;
+        $groupPath   = $this->basePath . '/' . $groupName;
+        $newSettings = $this->flatten($newSettings, $groupName);
 
         if (!$rootGroup = $this->dm->find(null, $groupPath)) {
             throw new \DomainException(sprintf('Invalid setting group named "%s". Make sure you have initialized the group in database.', $groupName));
         }
 
-        $newSettings = $this->flatten($newSettings, $groupName);
+        // need to unNormalize all setting values
+        array_walk($newSettings, function(&$value, $name) {
+            $value = $this->unNormalizeValue($name, $value);
+        });
 
         $qb = $this->dm
             ->createQueryBuilder('s')
@@ -202,7 +233,7 @@ class SettingManager implements SettingManagerInterface
         // update existing settings in db if needed
         foreach ($dbSettings as $dbSetting) {
             // build setting name from db setting's id (full path)
-            $settingName = preg_replace('#^' . $basePath . '/#', '', $dbSetting->getId());
+            $settingName = preg_replace('#^' . $this->basePath . '/#', '', $dbSetting->getId());
             $settingName = str_replace('/', '.', $settingName);
 
             if (array_key_exists($settingName, $newSettings)) {
@@ -243,13 +274,52 @@ class SettingManager implements SettingManagerInterface
                 $this->session->save();
             }
 
-            $dbSetting = new Setting($settingName, $newSetting);
+            $settingClass = array_key_exists($name, $this->i18nSettings)
+                ? I18nSetting::class : Setting::class;
+
+            $dbSetting = new $settingClass($settingName, $newSetting);
             $dbSetting->setParentDocument($parentDocument);
 
             $this->dm->persist($dbSetting);
         }
 
         $this->dm->flush();
+    }
+
+    /**
+     * Normalize a setting's value
+     *
+     * Settings' values are stored as string, therefore we need to normalize
+     * them before they can be used with other parts of the system, such as
+     * Symfony's Form Component
+     *
+     * @param string $name
+     * @param string $value
+     */
+    protected function normalizeValue($name, $value)
+    {
+        // if this is a boolean value
+        if (strpos($name, 'enable_') !== false) {
+            return $value == 'yes' ? true : false;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Convert a setting's value back to its original one
+     *
+     * @param string $name
+     * @param string $value
+     */
+    protected function unNormalizeValue($name, $value)
+    {
+        // if this is a boolean value
+        if (strpos($name, 'enable_') !== false) {
+            return $value === true ? 'yes' : '';
+        }
+
+        return $value;
     }
 
     /**
@@ -352,14 +422,22 @@ class SettingManager implements SettingManagerInterface
                 ->name('*.php')
                 ->depth('== 0');
 
+            /* @var $file SplFileInfo */
             foreach ($settingFiles as $file) {
                 $settings = include $file;
                 if (!is_array($settings)) {
                     throw new \InvalidArgumentException('Provided default settings resource is invalid, please use a PHP file that returns an array.');
                 }
 
-                $settingPrefix = str_replace('.php', '', $file->getFileName());
-                $this->defaultSettings = array_merge($this->defaultSettings, $this->flatten($settings, $settingPrefix));
+                $settingPrefix = str_replace(array('_i18n.php', '.php'), '', $file->getFileName());
+                $flattenedSettings = $this->flatten($settings, $settingPrefix);
+
+                $this->defaultSettings = array_merge($this->defaultSettings, $flattenedSettings);
+
+                // load into i18nSettings as well, if applicable
+                if (preg_match('/_i18n\.php$/i', $file->getFilename())) {
+                    $this->i18nSettings = array_merge($this->i18nSettings, $flattenedSettings);
+                }
             }
         }
 
@@ -369,16 +447,32 @@ class SettingManager implements SettingManagerInterface
     /**
      * Load settings that are marked as 'autoload' from database and merge
      * them with default settings
+     *
+     * Since we're doing a reload, there's no reason to use a reslt cache
+     *
+     * @param string $settingClass
      */
-    protected function loadSettings()
+    protected function loadSettings($settingClass = null)
     {
-        $settings = $this->dr->findBy(array('autoload' => true));
+        $settingClass = $settingClass ?: Setting::class;
+        $settings     = $this->dm->getRepository($settingClass)->findBy(array('autoload' => true));
 
+        /* @var $setting Setting */
         foreach ($settings as $setting) {
             $settingName = preg_replace('#^' . $this->basePath . '/#', '', $setting->getId(), 1);
             $settingName = str_replace('/', '.', $settingName);
 
-            $this->settings[$settingName] = $setting->getValue();
+            if ($setting instanceof I18nSetting && $this->locale) {
+                if ($this->locale !== $setting->getLocale()) {
+                    $setting = $this->dm->findTranslation($settingClass, $setting->getId(), $this->locale);
+                }
+            }
+
+            // a nulll value means the field value isn't available
+            if (!is_null($setting->getValue())) {
+                $this->settings[$settingName] = $setting->getValue();
+            }
+
             $this->settingDocuments[$settingName] = $setting;
         }
     }

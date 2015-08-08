@@ -19,6 +19,16 @@ namespace Kdm\ConfigBundle\Model;
 interface SettingManagerInterface
 {
     /**
+     * Set the locale to use for settings that this manager manages
+     *
+     * When the locale changes all settings that this manager manages must
+     * change their current locales as well
+     *
+     * @param string $locale
+     */
+    public function setLocale($locale);
+
+    /**
      * Gets an individual setting by name
      *
      * @param string $name
